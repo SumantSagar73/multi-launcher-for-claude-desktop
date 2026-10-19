@@ -71,7 +71,7 @@
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "build/icon.png",
-      "identity": null,
+      "identity": "-",
       "target": [
         {
           "target": "dmg",
@@ -96,7 +96,9 @@
           }
         ],
         "LSMinimumSystemVersion": "11.0"
-      }
+      },
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     },
     "dmg": {
       "title": "Multi Launcher for Claude Desktop",
