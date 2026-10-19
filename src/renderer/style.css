@@ -56,6 +56,8 @@ body {
 }
 .brand { font-size: var(--t-sm); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
 .titlebar-actions { display: flex; align-items: center; gap: var(--s1); -webkit-app-region: no-drag; }
+/* macOS puts its close/minimise/zoom buttons at the left of the title bar instead of the right. */
+[data-platform="darwin"] .titlebar { padding-left: 84px; padding-right: var(--s4); }
 
 .status-dot { width: 32px; height: 32px; display: grid; place-items: center; background: transparent; border: 0; border-radius: var(--radius-sm); cursor: pointer; }
 .status-dot:hover { background: var(--surface-2); }

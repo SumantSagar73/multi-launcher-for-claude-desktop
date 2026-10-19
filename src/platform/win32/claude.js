@@ -100,6 +100,12 @@ async function launchProfile(profile, url) {
   child.unref();
 }
 
+// Bring a running account forward. On Windows that is the same as starting it again: Claude hands the request to the
+// instance that already has this data folder and shows its window.
+function focusProfile(profile, _instance, url) {
+  return launchProfile(profile, url);
+}
+
 function taskkill(pid, force) {
   return new Promise((resolve) => {
     execFile('taskkill.exe', ['/PID', String(pid), '/T', ...(force ? ['/F'] : [])], { windowsHide: true }, () => resolve());
@@ -107,11 +113,13 @@ function taskkill(pid, force) {
 }
 
 // Ask nicely first; Claude may only hide its window, so force the tree down if it is still there.
-async function quitInstance(pid) {
+// Takes the instance from scanInstances() (a bare process id also works).
+async function quitInstance(target) {
+  const pid = typeof target === 'object' && target !== null ? target.pid : target;
   await taskkill(pid, false);
   await new Promise((r) => setTimeout(r, 3000));
   const still = (await scanInstances()).some((i) => i.pid === pid);
   if (still) await taskkill(pid, true);
 }
 
-module.exports = { findClaude, scanInstances, matchInstance, launchProfile, quitInstance, parseUserDataDir, norm };
+module.exports = { findClaude, scanInstances, matchInstance, launchProfile, focusProfile, quitInstance, parseUserDataDir, norm };

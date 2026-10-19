@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const r = require('../src/router');
-const { parseUserDataDir } = require('../src/claude');
+const { parseUserDataDir } = require('../src/platform/win32/claude');
 
 const profiles = [
   { id: 'default', isDefault: true, name: 'Default' },

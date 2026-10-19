@@ -2,6 +2,8 @@
 
 const PALETTE = ['#e07a5f', '#e8a23a', '#81b29a', '#6fa8dc', '#8e7dbe', '#d16ba5', '#4db6ac', '#a39b90'];
 
+document.documentElement.dataset.platform = window.launcher.platform;
+
 const $ = (id) => document.getElementById(id);
 const rowEls = new Map();
 let state = null;
@@ -96,7 +98,7 @@ function makeRow(p) {
   return { li, avatar, name, tag, hotkey, email, meta, free, shortcut, remove, quit, open };
 }
 
-function updateRow(r, p, canShortcuts) {
+function updateRow(r, p, canShortcuts, plat) {
   r.li.classList.toggle('is-running', p.running);
   r.avatar.style.setProperty('--c', p.color);
   r.avatar.textContent = (p.name.trim()[0] || '?').toUpperCase();
@@ -110,7 +112,8 @@ function updateRow(r, p, canShortcuts) {
   const parts = [p.running ? `Running${p.memMB ? ` · ${(p.memMB / 1024).toFixed(1)} GB RAM` : ''}` : 'Not running'];
   if (p.diskGB) parts.push(`${p.diskGB} GB on disk${p.vmGB ? ` (Cowork VM ${p.vmGB} GB)` : ''}`);
   r.meta.textContent = parts.join(' · ');
-  r.free.hidden = !p.running || p.isDefault;
+  r.free.hidden = !p.running || p.isDefault || !plat.caps.trim;
+  r.shortcut.title = plat.ui.shortcutTitle;
   r.shortcut.hidden = !canShortcuts;
   r.remove.hidden = p.isDefault;
   r.quit.hidden = !p.running || p.isDefault;
@@ -128,7 +131,7 @@ function renderList(s) {
       r.li.style.animationDelay = `${i * 50}ms`;
       rowEls.set(p.id, r);
     }
-    updateRow(r, p, s.settings.canShortcuts);
+    updateRow(r, p, s.settings.canShortcuts, s.platform);
     if (list.children[i] !== r.li) list.insertBefore(r.li, list.children[i] || null);
   });
   for (const [id, r] of rowEls) {
@@ -137,12 +140,13 @@ function renderList(s) {
   $('empty').hidden = s.profiles.length > 1;
 
   const runningCount = s.profiles.filter((p) => !p.isDefault && p.running).length;
-  $('tile').hidden = runningCount < 2;
+  $('tile').hidden = runningCount < 2 || !s.platform.caps.tile;
 }
 
 // ---------- link routing card ----------
 
 function renderLinks(s) {
+  $('sec-links').hidden = !s.platform.caps.linkRouting;
   const { active, secondsLeft } = s.watch;
   $('pill').className = 'pill' + (active ? ' on' : '');
   $('pill-text').textContent = active ? `Watching · ${Math.max(1, Math.ceil(secondsLeft / 60))} min left` : 'Idle';
@@ -153,12 +157,14 @@ function renderLinks(s) {
 }
 
 function renderSettings(s) {
+  $('row-trim').hidden = !s.platform.caps.trim;
+  $('autostart-label').textContent = s.platform.ui.autostartLabel;
   $('set-trim').checked = s.settings.autoFreeMemory;
   const auto = $('set-autostart');
   auto.checked = s.settings.startWithWindows;
   auto.disabled = !s.settings.canAutostart;
   $('autostart-hint').textContent = s.settings.canAutostart
-    ? 'Opens the launcher in the tray when you sign in to Windows.'
+    ? s.platform.ui.autostartHint
     : 'Available in the installed app. See the README to build and install it.';
   const autoclose = $('set-autoclose');
   if (document.activeElement !== autoclose) autoclose.value = String(s.settings.autoCloseHours);

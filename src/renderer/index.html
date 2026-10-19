@@ -83,7 +83,7 @@
       </button>
     </div>
 
-    <section class="settings-section" aria-labelledby="h-links">
+    <section class="settings-section" id="sec-links" aria-labelledby="h-links">
       <div class="card-head">
         <h3 id="h-links">Sign-in links</h3>
         <span id="pill" class="pill"><span class="pill-dot"></span><span id="pill-text"></span></span>
@@ -94,7 +94,7 @@
 
     <section class="settings-section" aria-labelledby="h-general">
       <h3 id="h-general">General</h3>
-      <label class="switch-row" for="set-trim">
+      <label class="switch-row" id="row-trim" for="set-trim">
         <span>
           <strong>Free memory from idle accounts</strong>
           <small>An account left in the background for 3 minutes gives its idle memory back. Never applied to Default.</small>
@@ -103,7 +103,7 @@
       </label>
       <label class="switch-row" for="set-autostart">
         <span>
-          <strong>Start with Windows</strong>
+          <strong id="autostart-label">Start with Windows</strong>
           <small id="autostart-hint"></small>
         </span>
         <input id="set-autostart" type="checkbox" role="switch">
