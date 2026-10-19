@@ -1,0 +1,35 @@
+name: Mac probe
+
+# Fact-finding on a real Mac, used while the macOS version is built. Runs when its own files change on the working
+# branch, or by hand. It installs Anthropic's official Claude Desktop (checked against the checksum Homebrew publishes
+# for that exact file), runs it in a scratch folder and prints what happened.
+on:
+  push:
+    branches: [cross-platform]
+    paths:
+      - .github/workflows/mac-probe.yml
+      - scripts/probe/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install official Claude Desktop
+        run: |
+          set -euo pipefail
+          url="https://downloads.claude.ai/releases/darwin/universal/2.42304.2/Claude-af65c0e384c1657459441aac3083c6e622789afe.zip"
+          curl -fsSL -o "$RUNNER_TEMP/Claude.zip" "$url"
+          echo "f97ee3e323dfeed019543db366c4fbc30cbd3c10481fe78a331fd307c2c083ab  $RUNNER_TEMP/Claude.zip" | shasum -a 256 -c -
+          ditto -xk "$RUNNER_TEMP/Claude.zip" /Applications
+          codesign --verify --deep --strict /Applications/Claude.app && echo "signature verifies"
+          spctl --assess --type execute -vv /Applications/Claude.app || true
+
+      - name: Probe
+        run: bash scripts/probe/mac-probe.sh
