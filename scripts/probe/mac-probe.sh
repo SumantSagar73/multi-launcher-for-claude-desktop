@@ -121,6 +121,24 @@ if [ -n "$PID_B" ]; then
   ps -axww -o pid=,ppid=,command= | grep -F -- "--user-data-dir=$DIR_B" | grep -v grep | cut -c1-160
 fi
 
+h "a lone account C: how fast does it start, and does SIGTERM leave anything behind?"
+DIR_C="$WORK/profile C"
+T0=$(date +%s)
+open -n -a "$APP" --args --user-data-dir="$DIR_C"
+PID_C="$(wait_for_main "$DIR_C")"
+echo "C main pid ${PID_C:-NOT FOUND} appeared after $(( $(date +%s) - T0 ))s"
+sleep 8
+echo "before SIGTERM: all processes carrying C's folder = $(procs_for "$DIR_C"), mains = $(mains_for "$DIR_C")"
+echo "memory (RSS KB) of C's main: $(ps -o rss= -p "$PID_C" | tr -d ' ')"
+kill -TERM "$PID_C"
+for i in 1 2 3 4 5 6 8 10; do
+  sleep 1
+  printf '+%ss  main alive=%s  all carrying C=%s\n' "$i" "$(kill -0 "$PID_C" 2>/dev/null && echo yes || echo no)" "$(procs_for "$DIR_C")"
+done
+
+h "frontmost detection with lsappinfo while a Claude is up (what the idle feature will poll)"
+for k in 1 2 3; do echo "front: $(lsfront)"; sleep 1; done
+
 h "cleanup"
 ps -axww -o pid=,command= | grep -F "$WORK" | grep -v grep | awk '{print $1}' | xargs -r kill -KILL 2>/dev/null
 echo done
