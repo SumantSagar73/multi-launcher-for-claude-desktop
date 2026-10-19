@@ -1,9 +1,10 @@
 // JXA (osascript -l JavaScript): which app is in front right now? Needs no permissions.
 ObjC.import('AppKit');
 
+// JXA exposes zero-argument Objective-C methods as bridged functions that must be called as methods (no .call).
 function read(object, name) {
   const value = object[name];
-  return typeof value === 'function' ? value.call(object) : value;
+  return typeof value === 'function' ? object[name]() : value;
 }
 
 function run() {

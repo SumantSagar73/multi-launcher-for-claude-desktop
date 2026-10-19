@@ -76,28 +76,41 @@ echo "after link 1 (which log gained a refusal?):"; count_marker
 echo "--- tail of each log"
 for f in $(claude_logs); do echo "--- $f"; tail -5 "$f"; done
 
+lsfront() { # the same question answered without scripting: lsappinfo
+  local asn; asn="$(lsappinfo front 2>&1)"; printf '%s -> ' "$asn"; lsappinfo info -only pid "$asn" 2>&1
+}
+mains_for() { ps -axww -o pid=,command= | grep -F -- "--user-data-dir=$1" | grep -F 'Contents/MacOS/Claude' | grep -v -- '--type=' | grep -v grep | wc -l | tr -d ' '; }
+procs_for() { ps -axww -o pid=,command= | grep -F -- "--user-data-dir=$1" | grep -v grep | wc -l | tr -d ' '; }
+
 h "frontmost app, then bring A to the front, then B (JXA NSRunningApplication, no permissions)"
-echo "front now:       $(front)"
-echo "activate A:      $(osascript -l JavaScript "$HERE/activate.js" "$PID_A" 2>&1)"; sleep 2
-echo "front after A:   $(front)   (expected pid $PID_A)"
-echo "activate B:      $(osascript -l JavaScript "$HERE/activate.js" "$PID_B" 2>&1)"; sleep 2
-echo "front after B:   $(front)   (expected pid $PID_B)"
+echo "front now (JXA):        $(front)"
+echo "front now (lsappinfo):  $(lsfront)"
+echo "activate A:             $(osascript -l JavaScript "$HERE/activate.js" "$PID_A" 2>&1)"; sleep 2
+echo "front after A (JXA):    $(front)   (expected pid $PID_A)"
+echo "front after A (ls):     $(lsfront)"
+echo "activate B:             $(osascript -l JavaScript "$HERE/activate.js" "$PID_B" 2>&1)"; sleep 2
+echo "front after B (JXA):    $(front)   (expected pid $PID_B)"
+echo "front after B (ls):     $(lsfront)"
 
-h "second launch with the SAME user-data-dir while A runs (is it a no-op? does A come forward?)"
+h "second launch with the SAME user-data-dir while A runs (does the duplicate go away by itself?)"
+echo "before: mains=$(mains_for "$DIR_A")"
 open -n -a "$APP" --args --user-data-dir="$DIR_A"
-sleep 6
-echo "main processes for A now: $(ps -axww -o pid=,command= | grep -F -- "--user-data-dir=$DIR_A" | grep -F 'Contents/MacOS/Claude' | grep -v -- '--type=' | grep -v grep | wc -l | tr -d ' ')  (1 = the lock held, the duplicate exited)"
-echo "front now: $(front)"
+for s in 3 8 15; do
+  sleep $((s == 3 ? 3 : (s == 8 ? 5 : 7)))
+  echo "after ${s}s: main processes for A = $(mains_for "$DIR_A")   all processes carrying A's folder = $(procs_for "$DIR_A")"
+done
+ps -axww -o pid=,ppid=,command= | grep -F -- "--user-data-dir=$DIR_A" | grep -F 'Contents/MacOS/Claude' | grep -v -- '--type=' | grep -v grep | cut -c1-140
 
-h "quit: SIGTERM to A's main process"
+h "quit: SIGTERM to A's main process, then watch the leftovers second by second"
 if [ -n "$PID_A" ]; then
+  echo "before: processes carrying A's folder = $(procs_for "$DIR_A")"
   kill -TERM "$PID_A"
-  for i in 1 2 3 4 5 6 7 8; do
-    if kill -0 "$PID_A" 2>/dev/null; then sleep 1; else echo "A main exited after ~${i}s of SIGTERM"; break; fi
+  for i in 1 2 3 4 5 6 7 8 9 10 12 15; do
+    sleep 1
+    printf '+%ss  main alive=%s  mains for A=%s  all carrying A=%s\n' "$i" "$(kill -0 "$PID_A" 2>/dev/null && echo yes || echo no)" "$(mains_for "$DIR_A")" "$(procs_for "$DIR_A")"
   done
-  kill -0 "$PID_A" 2>/dev/null && echo "A main STILL running after 8s of SIGTERM"
-  sleep 2
-  echo "processes still carrying A's folder: $(ps -axww -o pid=,command= | grep -F -- "--user-data-dir=$DIR_A" | grep -v grep | wc -l | tr -d ' ')"
+  echo "--- what is left, and who is its parent?"
+  ps -axww -o pid=,ppid=,command= | grep -F -- "--user-data-dir=$DIR_A" | grep -v grep | cut -c1-150
 fi
 echo "B still running: $(kill -0 "$PID_B" 2>/dev/null && echo yes || echo no)"
 
