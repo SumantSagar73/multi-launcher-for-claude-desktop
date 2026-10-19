@@ -1,0 +1,77 @@
+name: Build for macOS
+
+# Builds the unsigned macOS app and checks it on a real Mac with the real Claude Desktop installed. The .dmg and .zip
+# are attached to the run as downloads.
+on:
+  push:
+    branches: [cross-platform]
+    paths:
+      - src/**
+      - package.json
+      - build/**
+      - scripts/**
+      - .github/workflows/mac-build.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: |
+          node scripts/make-icon.js
+          npx electron-builder --mac --publish never
+          ls -la release
+
+      - name: Install official Claude Desktop
+        run: |
+          set -euo pipefail
+          url="https://downloads.claude.ai/releases/darwin/universal/2.42304.2/Claude-af65c0e384c1657459441aac3083c6e622789afe.zip"
+          curl -fsSL -o "$RUNNER_TEMP/Claude.zip" "$url"
+          echo "f97ee3e323dfeed019543db366c4fbc30cbd3c10481fe78a331fd307c2c083ab  $RUNNER_TEMP/Claude.zip" | shasum -a 256 -c -
+          ditto -xk "$RUNNER_TEMP/Claude.zip" /Applications
+          codesign --verify --deep --strict /Applications/Claude.app && echo "signature verifies"
+
+      - name: Install the built app from the .dmg, as a user would
+        run: |
+          set -euo pipefail
+          dmg="$(ls release/*.dmg | head -1)"
+          hdiutil attach "$dmg" -nobrowse -mountpoint /Volumes/ML
+          ls /Volumes/ML
+          cp -R "/Volumes/ML/Multi Launcher for Claude Desktop.app" /Applications/
+          hdiutil detach /Volumes/ML
+
+      - name: End-to-end check against real Claude
+        run: bash scripts/ci/mac-e2e.sh "/Applications/Multi Launcher for Claude Desktop.app"
+
+      - name: Quarantine and Gatekeeper behaviour (what a downloaded copy will see)
+        run: |
+          cp -R "/Applications/Multi Launcher for Claude Desktop.app" "$RUNNER_TEMP/Q.app"
+          xattr -w com.apple.quarantine "0081;00000000;Safari;" "$RUNNER_TEMP/Q.app"
+          spctl --assess --type execute -vv "$RUNNER_TEMP/Q.app" || echo "(expected: unsigned apps are refused until the user approves them)"
+          xattr -dr com.apple.quarantine "$RUNNER_TEMP/Q.app"
+          xattr -l "$RUNNER_TEMP/Q.app" || true
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: macos-app
+          path: |
+            release/*.dmg
+            release/*.zip

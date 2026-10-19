@@ -29,3 +29,7 @@ const out = path.join(__dirname, '..', 'build', 'icon.ico');
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, Buffer.concat([header, ...entries, ...pngs]));
 console.log(`wrote ${out} (${sizes.join(', ')} px)`);
+
+const png = path.join(__dirname, '..', 'build', 'icon.png');
+fs.writeFileSync(png, makeIconPng(1024));
+console.log(`wrote ${png} (1024 px, used for the macOS icon)`);
